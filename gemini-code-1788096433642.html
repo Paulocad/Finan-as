@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Livro-Caixa</title>
+  
+  <!-- PWA Settings -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Livro-Caixa">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2933/2933116.png">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            paper:   'var(--paper)',
+            paper2:  'var(--paper-raised)',
+            ink:     'var(--ink)',
+            inkSoft: 'var(--ink-soft)',
+            gold:    'var(--gold)',
+            green:   'var(--green)',
+            red:     'var(--red)',
+            line:    'var(--line)',
+          },
+          fontFamily: {
+            display: ['Fraunces', 'serif'],
+            mono: ['"IBM Plex Mono"', 'monospace'],
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    :root{
+      --paper:#F6F1E6; --paper-raised:#FFFFFF; --ink:#1C2333; --ink-soft:#6B6455;
+      --gold:#A87C3F; --green:#2F6F4E; --red:#A8442E; --line:#DED2B6;
+      --shadow: 0 1px 2px rgba(28,35,51,.04), 0 6px 16px rgba(28,35,51,.06);
+    }
+    .dark{
+      --paper:#12151D; --paper-raised:#1A1E29; --ink:#EDE6D6; --ink-soft:#8E8879;
+      --gold:#C9A84C; --green:#4E9975; --red:#C1654A; --line:#2A2E3B;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 20px rgba(0,0,0,.35);
+    }
+    * { -webkit-tap-highlight-color: transparent; }
+    body{
+      background-color: var(--paper);
+      color: var(--ink);
+      font-family: 'Inter', sans-serif;
+      transition: background-color .25s ease, color .25s ease;
+      background-image: radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 1px);
+      background-size: 22px 22px;
+      background-attachment: fixed;
+    }
+    .hide{ display:none !important; }
+
+    .ledger-card{
+      background: var(--paper2);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      border-radius: 18px;
+      position: relative;
+    }
+    .stub::before{
+      content:"";
+      position:absolute; top:0; left:20px; right:20px; height:0;
+      border-top: 2px dashed var(--line);
+    }
+    .stub{ padding-top: 22px !important; }
+
+    .eyebrow{
+      font-family:'IBM Plex Mono', monospace;
+      font-size: 10px; letter-spacing:.16em; text-transform:uppercase;
+      color: var(--ink-soft); font-weight:600;
+    }
+    .figure{ font-family:'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
+    .headline{ font-family:'Fraunces', serif; }
+
+    ::-webkit-scrollbar{ width:4px; }
+    ::-webkit-scrollbar-thumb{ background: var(--line); border-radius:10px; }
+
+    .selo{
+      width:40px; height:40px; border-radius:9999px;
+      display:flex; align-items:center; justify-content:center;
+      border: 1.5px dashed currentColor;
+      position:relative; flex-shrink:0;
+    }
+    .selo::after{
+      content:""; position:absolute; inset:3px; border-radius:9999px;
+      border: 1px solid currentColor; opacity:.35;
+    }
+
+    .nav-btn{ transition: color .2s ease, transform .15s ease; }
+    .nav-btn.active{ color: var(--gold); }
+    .nav-btn:active{ transform: scale(.92); }
+
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(.5); }
+    .dark input[type="date"]::-webkit-calendar-picker-indicator,
+    .dark input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(.85); }
+
+    .pb-safe{ padding-bottom: calc(1.5rem + env(safe-area-inset-bottom)); }
+  </style>
+</head>
+<body class="h-screen flex flex-col">
+
+  <!-- Topbar -->
+  <header class="px-4 pt-4 pb-3 flex justify-between items-end sticky top-0 z-20 bg-paper/95 backdrop-blur border-b border-line">
+    <div>
+      <p class="eyebrow">Regime de Competência</p>
+      <h1 class="headline text-2xl font-semibold leading-none mt-1">Nosso Financeiro</h1>
+    </div>
+    <div class="flex items-center gap-2 mb-0.5">
+      <select id="filtro-competencia" onchange="processarDados()" class="bg-paper border border-line rounded-full px-3 py-1.5 text-xs font-mono font-semibold focus:outline-none focus:border-gold text-ink">
+        <option value="todos">Todas Competências</option>
+      </select>
+      <button onclick="toggleTheme()" aria-label="Alternar tema" class="text-ink-soft hover:text-gold text-lg leading-none p-1.5">
+        <i class="fa-solid fa-circle-half-stroke"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- LOADING -->
+  <div id="loading" class="flex-1 flex flex-col justify-center items-center gap-4">
+    <div class="selo text-gold"><i class="fa-solid fa-feather-pointed"></i></div>
+    <p class="eyebrow animate-pulse">Apurando competência&hellip;</p>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <main id="main-content" class="flex-1 overflow-y-auto hide pb-32">
+
+    <!-- TELA 1: DASHBOARD -->
+    <section id="tab-dashboard" class="p-4 space-y-4">
+      <div class="ledger-card stub p-5 text-center">
+        <p class="eyebrow" id="label-competencia-ativa">Resultado da Competência</p>
+        <h2 id="resumo-saldo" class="figure text-3xl sm:text-4xl leading-none font-bold mt-3 tracking-tight truncate">R$ 0,00</h2>
+        <p class="text-[11px] text-ink-soft mt-3 italic headline">"apurado pelo mês de referência das contas"</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="ledger-card p-4">
+          <div class="flex items-center gap-2 text-green">
+            <div class="selo text-green !w-7 !h-7 text-xs"><i class="fa-solid fa-arrow-down-long"></i></div>
+            <p class="eyebrow !text-green">Receitas</p>
+          </div>
+          <p id="resumo-receitas" class="figure text-lg sm:text-xl font-bold mt-2 truncate">R$ 0,00</p>
+        </div>
+        <div class="ledger-card p-4">
+          <div class="flex items-center gap-2 text-red">
+            <div class="selo text-red !w-7 !h-7 text-xs"><i class="fa-solid fa-arrow-up-long"></i></div>
+            <p class="eyebrow !text-red">Despesas</p>
+          </div>
+          <p id="resumo-despesas" class="figure text-lg sm:text-xl font-bold mt-2 truncate">R$ 0,00</p>
+        </div>
+      </div>
+
+      <div class="ledger-card stub p-4">
+        <div class="flex items-baseline justify-between mb-3">
+          <h3 class="headline font-semibold text-base">Composição de Gastos</h3>
+          <span class="eyebrow">por categoria</span>
+        </div>
+        <div class="relative h-48 w-full"><canvas id="chartCategorias"></canvas></div>
+      </div>
+
+      <div class="ledger-card stub p-4">
+        <div class="flex items-baseline justify-between mb-3">
+          <h3 class="headline font-semibold text-base">Evolução por Competência</h3>
+          <span class="eyebrow">mês a mês</span>
+        </div>
+        <div class="relative h-48 w-full"><canvas id="chartCompetencias"></canvas></div>
+      </div>
+    </section>
+
+    <!-- TELA 2: EXTRATO -->
+    <section id="tab-extrato" class="p-4 space-y-3 hide">
+      <div class="flex justify-between items-baseline px-1 mb-1">
+        <h3 class="headline font-semibold text-xl">Lançamentos</h3>
+        <span id="contador-linhas" class="eyebrow border border-line rounded-full px-2.5 py-1">0 registros</span>
+      </div>
+      <div id="lista-extrato" class="space-y-2.5"></div>
+    </section>
+
+    <!-- TELA 3: NOVO LANÇAMENTO -->
+    <section id="tab-novo" class="p-4 hide">
+      <div class="ledger-card stub p-5 mb-10">
+        <div class="flex items-baseline justify-between border-b border-line pb-3 mb-4">
+          <h3 class="headline font-semibold text-xl">Novo lançamento</h3>
+          <span class="eyebrow">registro por competência</span>
+        </div>
+        <form id="form-novo" onsubmit="salvar(event)" class="space-y-4">
+
+          <div class="grid grid-cols-2 gap-2 bg-paper p-1 rounded-2xl border border-line">
+            <label class="cursor-pointer block">
+              <input type="radio" name="tipo" value="Despesa" checked class="hidden peer">
+              <span class="flex items-center justify-center gap-2 text-center py-2.5 text-sm font-bold rounded-xl text-ink-soft peer-checked:bg-[var(--red)] peer-checked:text-white transition shadow-sm">
+                <i class="fa-solid fa-basket-shopping"></i> Despesa
+              </span>
+            </label>
+            <label class="cursor-pointer block">
+              <input type="radio" name="tipo" value="Receita" class="hidden peer">
+              <span class="flex items-center justify-center gap-2 text-center py-2.5 text-sm font-bold rounded-xl text-ink-soft peer-checked:bg-[var(--green)] peer-checked:text-white transition shadow-sm">
+                <i class="fa-solid fa-sack-dollar"></i> Receita
+              </span>
+            </label>
+          </div>
+
+          <div>
+            <label class="eyebrow">Valor (R$)</label>
+            <input type="number" step="0.01" name="valor" required placeholder="0,00"
+              class="w-full bg-paper border border-line rounded-xl px-4 py-3 text-2xl figure font-bold focus:outline-none focus:border-gold mt-1.5 text-ink">
+          </div>
+
+          <div>
+            <label class="eyebrow">Descrição</label>
+            <input type="text" name="descricao" required placeholder="Ex.: Aluguel, Supermercado, Salário"
+              class="w-full bg-paper border border-line rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gold mt-1.5 text-ink">
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 bg-paper2 border border-line p-3 rounded-xl">
+            <div>
+              <label class="eyebrow !text-gold font-bold">Mês Competência *</label>
+              <input type="month" id="campo-competencia" name="competencia" required
+                class="w-full bg-paper border border-gold/40 rounded-xl px-3 py-2.5 text-xs font-mono font-bold focus:outline-none focus:border-gold mt-1.5 text-ink">
+            </div>
+            <div>
+              <label class="eyebrow">Data Pagto/Registro</label>
+              <input type="date" id="campo-data" name="data" required
+                class="w-full bg-paper border border-line rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-gold mt-1.5 text-ink">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="eyebrow">Categoria</label>
+              <select name="categoria" class="w-full bg-paper border border-line rounded-xl px-3 py-3 text-sm focus:outline-none focus:border-gold mt-1.5 text-ink">
+                <option value="Alimentação">🍽️ Alimentação</option>
+                <option value="Moradia">🏠 Moradia</option>
+                <option value="Transporte">🚗 Transporte</option>
+                <option value="Saúde">💊 Saúde</option>
+                <option value="Lazer">🎉 Lazer</option>
+                <option value="Renda">💼 Renda / Salário</option>
+                <option value="Outros">🗂️ Outros</option>
+              </select>
+            </div>
+            <div>
+              <label class="eyebrow">Responsável</label>
+              <select name="responsavel" class="w-full bg-paper border border-line rounded-xl px-3 py-3 text-sm focus:outline-none focus:border-gold mt-1.5 text-ink">
+                <option value="Ambos" selected>Ambos</option>
+                <option value="Paulo">Paulo</option>
+                <option value="Esposa">Esposa</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <div>
+  <label class="eyebrow">Forma de Pagamento</label>
+  <select name="formaPagamento" class="w-full bg-paper border border-line rounded-xl px-3 py-3 text-sm focus:outline-none focus:border-gold mt-1.5 text-ink">
+    <option value="Cartão de Crédito">Cartão de Crédito</option>
+    <option value="Cartão de Débito">Cartão de Débito</option>
+    <option value="Pix">Pix / Transferência</option>
+    <option value="Boleto">Boleto</option>
+    <option value="Dinheiro">Dinheiro</option>
+  </select>
+</div>
+
+          <button type="submit" id="btn-submit"
+            class="w-full bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold py-4 rounded-xl shadow-xl mt-4 transition transform active:scale-95 flex justify-center items-center gap-2 cursor-pointer relative z-10">
+            <i class="fa-solid fa-stamp text-lg"></i> Carimbar Lançamento
+          </button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="fixed bottom-0 w-full bg-paper/95 backdrop-blur border-t border-line flex justify-around pt-3 pb-safe z-30">
+    <button onclick="mudarAba('dashboard')" id="nav-dashboard" class="nav-btn active flex flex-col items-center text-ink-soft w-1/3">
+      <i class="fa-solid fa-book-open text-xl mb-1"></i><span class="eyebrow !text-[9px]">Competência</span>
+    </button>
+    <button onclick="mudarAba('extrato')" id="nav-extrato" class="nav-btn flex flex-col items-center text-ink-soft w-1/3">
+      <i class="fa-solid fa-receipt text-xl mb-1"></i><span class="eyebrow !text-[9px]">Extrato</span>
+    </button>
+    <button onclick="mudarAba('novo')" id="nav-novo" class="nav-btn flex flex-col items-center text-ink-soft w-1/3">
+      <i class="fa-solid fa-feather-pointed text-xl mb-1"></i><span class="eyebrow !text-[9px]">Novo</span>
+    </button>
+  </nav>
+
+  <script>
+    // URL OFICIAL CONFIGURADA
+    const API_URL = "https://script.google.com/macros/s/AKfycbzaaQZPZwpzGBJ47LpxhG_YfjRWhmJ3hoLvQFK0Ix3wP7uhaaWaSy3MKeuCLAdYTWZfvA/exec";
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+
+    let bancoDados = [];
+    let graficoCategorias = null;
+    let graficoCompetencias = null;
+
+    const getChartColors = () => isDark() 
+      ? ['#C9A84C', '#4E9975', '#C1654A', '#7A9CBF', '#B39768', '#907FA6', '#BDB8AC']
+      : ['#A87C3F', '#2F6F4E', '#A8442E', '#5B7B9C', '#8B6F47', '#6B5B7E', '#9C9585'];
+
+    const hoje = new Date();
+    document.getElementById('campo-data').value = hoje.toISOString().split('T')[0];
+    document.getElementById('campo-competencia').value = hoje.toISOString().substring(0, 7);
+    carregarDadosBase();
+
+    function mudarAba(abaId) {
+      document.querySelectorAll('main > section').forEach(el => el.classList.add('hide'));
+      document.getElementById('tab-' + abaId).classList.remove('hide');
+      document.querySelectorAll('nav .nav-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('nav-' + abaId).classList.add('active');
+    }
+
+    function toggleTheme() {
+      document.documentElement.classList.toggle('dark');
+      atualizarCoresGraficos();
+    }
+    const isDark = () => document.documentElement.classList.contains('dark');
+
+    function carregarDadosBase() {
+      fetch(`${API_URL}?action=getDados`, {
+        method: 'GET',
+        redirect: 'follow'
+      })
+      .then(res => res.json())
+      .then(dados => {
+        bancoDados = Array.isArray(dados) ? dados : [];
+        popularSelectCompetencias();
+        processarDados();
+        document.getElementById('loading').classList.add('hide');
+        document.getElementById('main-content').classList.remove('hide');
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Não foi possível carregar os dados. Verifique sua conexão.");
+        document.getElementById('loading').classList.add('hide');
+        document.getElementById('main-content').classList.remove('hide');
+      });
+    }
+
+    function popularSelectCompetencias() {
+      const select = document.getElementById('filtro-competencia');
+      const competencias = [...new Set(bancoDados.map(t => t.mesAno))]
+        .filter(m => m && typeof m === 'string' && m.includes('-'))
+        .sort().reverse();
+
+      select.innerHTML = '<option value="todos">Todas Competências</option>';
+      competencias.forEach(m => {
+        const op = document.createElement('option');
+        op.value = m;
+        const [ano, mes] = m.split('-');
+        op.text = `Comp: ${mes}/${ano}`;
+        select.appendChild(op);
+      });
+
+      const mesAtual = new Date().toISOString().substring(0, 7);
+      if (competencias.includes(mesAtual)) {
+        select.value = mesAtual;
+      }
+    }
+
+    function processarDados() {
+      const compSelecionada = document.getElementById('filtro-competencia').value;
+      let dadosFiltrados = bancoDados;
+
+      if (compSelecionada !== 'todos') {
+        dadosFiltrados = bancoDados.filter(t => t.mesAno === compSelecionada);
+        const [ano, mes] = compSelecionada.split('-');
+        document.getElementById('label-competencia-ativa').innerText = `Resultado da Competência ${mes}/${ano}`;
+      } else {
+        document.getElementById('label-competencia-ativa').innerText = 'Resultado Consolidado (Geral)';
+      }
+
+      renderizarDashboard(dadosFiltrados);
+      renderizarExtrato(dadosFiltrados);
+    }
+
+    const formataBr = v => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    function renderizarDashboard(dados) {
+      let rec = 0, des = 0;
+      const catMap = {};
+
+      dados.forEach(t => {
+        const val = Number(t.valor) || 0;
+        if (t.tipo === 'Receita') {
+          rec += val;
+        } else {
+          des += val;
+          catMap[t.categoria] = (catMap[t.categoria] || 0) + val;
+        }
+      });
+
+      const saldo = rec - des;
+      const saldoEl = document.getElementById('resumo-saldo');
+      saldoEl.innerText = formataBr(saldo);
+      saldoEl.style.color = saldo < 0 ? 'var(--red)' : (saldo > 0 ? 'var(--green)' : 'var(--ink)');
+      document.getElementById('resumo-receitas').innerText = formataBr(rec);
+      document.getElementById('resumo-despesas').innerText = formataBr(des);
+
+      renderizarGraficoCategorias(catMap);
+      renderizarGraficoCompetencias();
+    }
+
+    Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+
+    function atualizarCoresGraficos() {
+      if (graficoCategorias) {
+        graficoCategorias.data.datasets[0].backgroundColor = getChartColors();
+        graficoCategorias.update();
+      }
+      if (graficoCompetencias) {
+        const gridColor = isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(28,35,51,0.06)';
+        graficoCompetencias.options.scales.x.grid.color = gridColor;
+        graficoCompetencias.options.scales.y.grid.color = gridColor;
+        graficoCompetencias.data.datasets[0].backgroundColor = isDark() ? '#4E9975' : '#2F6F4E';
+        graficoCompetencias.data.datasets[1].backgroundColor = isDark() ? '#C1654A' : '#A8442E';
+        graficoCompetencias.update();
+      }
+    }
+
+    function renderizarGraficoCategorias(catMap) {
+      const ctx = document.getElementById('chartCategorias').getContext('2d');
+      const labels = Object.keys(catMap);
+      const values = Object.values(catMap);
+
+      if (graficoCategorias) graficoCategorias.destroy();
+
+      if (labels.length === 0) {
+        graficoCategorias = null;
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        return;
+      }
+
+      graficoCategorias = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{ data: values, backgroundColor: getChartColors(), borderWidth: 0, hoverOffset: 6 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { 
+            legend: { 
+              position: 'right', 
+              labels: { 
+                boxWidth: 10, 
+                color: () => isDark() ? '#EDE6D6' : '#1C2333',
+                font: { family: "'Inter', sans-serif", size: 11 } 
+              } 
+            } 
+          },
+          cutout: '68%'
+        }
+      });
+    }
+
+    function renderizarGraficoCompetencias() {
+      const ctx = document.getElementById('chartCompetencias').getContext('2d');
+      const compMap = {};
+      bancoDados.forEach(t => {
+        const c = t.mesAno || 'Indefinido';
+        if (!compMap[c]) compMap[c] = { rec: 0, des: 0 };
+        const val = Number(t.valor) || 0;
+        if (t.tipo === 'Receita') compMap[c].rec += val;
+        else compMap[c].des += val;
+      });
+
+      const comps = Object.keys(compMap).sort();
+      const labelsFormatados = comps.map(c => {
+        const partes = c.split('-');
+        return partes.length === 2 ? `${partes[1]}/${partes[0].substring(2)}` : c;
+      });
+
+      const recData = comps.map(c => compMap[c].rec);
+      const desData = comps.map(c => compMap[c].des);
+
+      if (graficoCompetencias) graficoCompetencias.destroy();
+      graficoCompetencias = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labelsFormatados,
+          datasets: [
+            { label: 'Receitas', data: recData, backgroundColor: isDark() ? '#4E9975' : '#2F6F4E', borderRadius: 4 },
+            { label: 'Despesas', data: desData, backgroundColor: isDark() ? '#C1654A' : '#A8442E', borderRadius: 4 }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { 
+              stacked: false, 
+              grid: { display: false },
+              ticks: { color: () => isDark() ? '#8E8879' : '#6B6455' }
+            },
+            y: { 
+              stacked: false, 
+              border: { dash: [3, 3] }, 
+              grid: { color: isDark() ? 'rgba(255,255,255,0.06)' : 'rgba(28,35,51,0.06)' },
+              ticks: { color: () => isDark() ? '#8E8879' : '#6B6455' }
+            }
+          }
+        }
+      });
+    }
+
+    function renderizarExtrato(dados) {
+      document.getElementById('contador-linhas').innerText = `${dados.length} registro${dados.length === 1 ? '' : 's'}`;
+      const lista = document.getElementById('lista-extrato');
+      lista.innerHTML = '';
+
+      if (dados.length === 0) {
+        lista.innerHTML = `
+          <div class="ledger-card p-8 text-center">
+            <div class="selo text-ink-soft mx-auto mb-3"><i class="fa-solid fa-inbox"></i></div>
+            <p class="headline text-base font-medium">Página em branco</p>
+            <p class="text-xs text-ink-soft mt-1">Nenhum lançamento registrado nesta competência.</p>
+          </div>`;
+        return;
+      }
+
+      const dadosOrdenados = [...dados].sort((a,b) => new Date(b.data) - new Date(a.data));
+
+      dadosOrdenados.forEach(t => {
+        const isRec = t.tipo === 'Receita';
+        const corTipo = isRec ? 'text-green' : 'text-red';
+        let badgeResp = 'bg-paper text-ink-soft border border-line';
+        if (t.responsavel === 'Paulo') badgeResp = 'bg-[color-mix(in_srgb,var(--gold)_15%,transparent)] text-gold border border-gold/30';
+        if (t.responsavel === 'Esposa') badgeResp = 'bg-[color-mix(in_srgb,var(--green)_15%,transparent)] text-green border border-green/30';
+
+        const compLabel = t.mesAno ? `${t.mesAno.split('-')[1]}/${t.mesAno.split('-')[0]}` : '';
+
+        lista.innerHTML += `
+          <div class="ledger-card p-3.5 flex items-center gap-3">
+            <div class="selo ${corTipo}">
+              <i class="fa-solid ${isRec ? 'fa-arrow-down-long' : 'fa-arrow-up-long'}"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="font-semibold text-sm leading-tight truncate">${t.descricao}</p>
+              <div class="flex gap-1.5 items-center mt-1.5 flex-wrap">
+                <span class="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded ${badgeResp}">${t.responsavel}</span>
+                <span class="text-[9px] font-mono font-bold text-gold border border-gold/40 px-1 py-0.5 rounded">Comp: ${compLabel}</span>
+                <span class="eyebrow !text-[9px]">${t.data ? t.data.split('-').reverse().join('/') : ''}</span>
+              </div>
+            </div>
+            <p class="figure font-bold text-right ${corTipo} whitespace-nowrap">${isRec ? '+' : '-'} ${formataBr(t.valor)}</p>
+          </div>
+        `;
+      });
+    }
+
+    function salvar(e) {
+      e.preventDefault();
+      const form = document.getElementById('form-novo');
+      const btn = document.getElementById('btn-submit');
+
+      const payload = {
+        tipo: form.tipo.value,
+        valor: form.valor.value,
+        descricao: form.descricao.value,
+        categoria: form.categoria.value,
+        responsavel: form.responsavel.value,
+        formaPagamento: form.formaPagamento.value,
+        data: form.data.value,
+        mesAno: form.competencia.value
+      };
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Carimbando...';
+
+      fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        redirect: 'follow'
+      })
+      .then(res => res.json())
+      .then(novosDados => {
+        bancoDados = Array.isArray(novosDados) ? novosDados : bancoDados;
+        popularSelectCompetencias();
+        document.getElementById('filtro-competencia').value = payload.mesAno;
+        processarDados();
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-stamp text-lg"></i> Carimbar Lançamento';
+        form.reset();
+
+        const hojeRec = new Date();
+        document.getElementById('campo-data').value = hojeRec.toISOString().split('T')[0];
+        document.getElementById('campo-competencia').value = hojeRec.toISOString().substring(0, 7);
+        mudarAba('extrato');
+      })
+      .catch(err => {
+        console.error(err);
+        alert('Erro ao gravar dados no servidor.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-stamp text-lg"></i> Carimbar Lançamento';
+      });
+    }
+  </script>
+</body>
+</html>
